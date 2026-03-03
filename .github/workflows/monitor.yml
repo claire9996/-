@@ -1,0 +1,43 @@
+name: 쿠팡 발주 모니터링
+
+on:
+  schedule:
+    # 매 정시마다 실행 (UTC 기준 - KST는 +9시간)
+    - cron: '0 * * * *'
+  workflow_dispatch:  # 수동 실행 버튼 활성화
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 의존성 설치
+        run: pip install requests playwright
+        
+      - name: Playwright 브라우저 설치
+        run: playwright install chromium --with-deps
+
+      - name: 발주번호 상태 파일 복원 (캐시)
+        uses: actions/cache@v4
+        with:
+          path: known_po_numbers.json
+          key: po-state-${{ github.run_id }}
+          restore-keys: |
+            po-state-
+
+      - name: 모니터링 실행
+        env:
+          COUPANG_ID: ${{ secrets.COUPANG_ID }}
+          COUPANG_PW: ${{ secrets.COUPANG_PW }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+          NOTION_USER_ID: ${{ secrets.NOTION_USER_ID }}
+        run: python monitor.py
